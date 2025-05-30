@@ -1,34 +1,43 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
-<meta charset="UTF-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>Collaborative Knit-Purl Stitch</title>
-<script src="https://cdn.jsdelivr.net/npm/p5@1.4.0/lib/p5.min.js"></script>
-<script src="sketch.js"></script>
-<style>
-  body, html {
-    margin: 0; padding: 0;
-    overflow-x: hidden;
-  }
-  #ui {
-    position: fixed;
-    top: 10px;
-    left: 10px;
-    z-index: 10;
-    background: rgba(255,255,255,0.9);
-    padding: 8px;
-    border-radius: 8px;
-  }
-  #userInput {
-    width: 300px;
-  }
-</style>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Collaborative Knit-Purl Stitch</title>
+  <script src="https://cdn.jsdelivr.net/npm/p5@1.4.0/lib/p5.min.js"></script>
+  <script src="sketch.js"></script>
+  <style>
+    body,
+    html {
+      margin: 0;
+      padding: 0;
+      overflow-x: hidden;
+    }
+
+    #ui {
+      position: fixed;
+      top: 10px;
+      left: 10px;
+      z-index: 10;
+      background: rgba(255, 255, 255, 0.9);
+      padding: 8px;
+      border-radius: 8px;
+    }
+
+    #userInput {
+      width: 300px;
+    }
+  </style>
 </head>
+
 <body>
   <div id="ui">
-    <input id="userInput" placeholder="Type your message" />
-    <button id="submitBtn">Send</button>
+    <form>
+      <input id="userInput" placeholder="Type your message" />
+      <button id="submitBtn">Send</button>
+    </form>
   </div>
 </body>
+
 </html>
