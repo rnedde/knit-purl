@@ -1,145 +1,169 @@
+let binaryMessage = '';
+let ellipseLength = 2.5;
+let ellipseWidth = 1.3;
+let stitchSize = 30;
+let stitchIndex = 0;
+
 let socket;
-let stitchArray = [];
-let cols;
-let cellSize = 30;
 
-let ellipseLength = 2.1;
-let ellipseWidth = 1;
+let knitColor = [255, 150, 200]; // default before server assigns
+let colorsForStitches = []; // store colors for each stitch so the colors persist
 
-let stitchQueue = [];
-let lastAddTime = 0;
-let addInterval = 2; // ms between adding stitches
-
-let clientColor;
 
 function setup() {
-    background(200, 70, 70);
-    createCanvas(windowWidth, windowHeight);
-    textFont('monospace');
-    textSize(20);
-    textAlign(CENTER, CENTER);
-    fill(255, 100, 100);
-    stroke(200, 80, 80);
-    blendMode(LIGHTEST);
-    strokeWeight(1);
+  let canvas = createCanvas(windowWidth, windowHeight);
+  canvas.position(0, 0);
+  canvas.style('z-index', '-1');
+  textSize(16);
 
-    socket = new WebSocket('ws://localhost:8080');
+  noStroke();
 
-    socket.onopen = () => {
-        console.log('Connected to WebSocket server');
-    };
+  // Bind existing HTML elements
+  const userInput = document.getElementById('userInput');
+  const submitBtn = document.getElementById('submitBtn');
 
-    socket.onmessage = (event) => {
-        let msg = JSON.parse(event.data);
-        if (msg.type === 'init') {
-            stitchArray = msg.data;
-        } else if (msg.type === 'update') {
-            stitchQueue.push(...msg.data);
-        }
-    };
+  // Connect to the WebSocket server
+  socket = new WebSocket('ws://localhost:8080');
 
-    socket.onerror = (error) => {
-        console.error('WebSocket error:', error);
-    };
+  socket.addEventListener('open', () => {
+    console.log('Connected to server');
+  });
 
-    // Handle form submission
-    let form = select('form');
-    form.elt.addEventListener('submit', (event) => {
-        event.preventDefault(); // Prevent page refresh
+  socket.addEventListener('message', (event) => {
+    const msg = JSON.parse(event.data);
+  
+    if (msg.type === 'assignColor') {
+      knitColor = msg.data; // this client’s knit color (an RGB array)
+      purlColor = [knitColor[0] * 0.8, knitColor[1] * 0.7, knitColor[2] * 0.6]; // optional darker purl
+    }
+    else if (msg.type === 'fullMessage') {
+        binaryMessage = msg.data;
+        colorsForStitches = msg.colors; // use actual historical colors from server
+        stitchIndex = 0;
+        background(255);
+        loop();
+      }
+    else if (msg.type === 'append') {
+      // Append new stitches and colors to arrays
+      binaryMessage += msg.data;
+  
+      // For each new stitch, assign the color from the sender (msg.color)
+      for(let i = 0; i < msg.data.length; i++) {
+        colorsForStitches.push(msg.color);
+      }
+  
+      loop();
+    }
+  });
 
-        let userInputEl = select('#userInput');
-        let userInput = userInputEl.value();
-        if (userInput.trim() !== '') {
-            socket.send(JSON.stringify({
-                type: 'newMessage',
-                data: userInput,
-                color: [red(clientColor), green(clientColor), blue(clientColor)]
-            }));
-            
-            userInputEl.value('');
-        }
-    });
+  submitBtn.addEventListener('click', function (e) {
+    e.preventDefault();
+    const message = userInput.value;
+    const newBinary = textToBinary(message);
+  
+    socket.send(JSON.stringify({ type: 'append', data: newBinary }));
+  
+    userInput.value = '';
+  });
 
-    // Generate a unique color for this client
-    clientColor = color(random(100, 255), random(100, 255), random(100, 255));
+  noLoop(); // stop draw() until submission
 }
 
 function draw() {
-    background(200, 70, 70);
-
-    // Add stitches from the queue at intervals
-    if (stitchQueue.length > 0 && millis() - lastAddTime > addInterval) {
-        stitchArray.push(stitchQueue.shift());
-        lastAddTime = millis();
-
-        // Resize canvas height if needed
-        cols = floor(width / cellSize);
-        let totalRows = ceil(stitchArray.length / cols);
-        let desiredHeight = totalRows * cellSize + 100;
-        if (desiredHeight > height) {
-            resizeCanvas(windowWidth, desiredHeight);
-        }
-    }
-
-    // Draw all stitches
-    cols = floor(width / cellSize);
-    for (let i = 0; i < stitchArray.length; i++) {
-        let x = (i % cols) * cellSize + cellSize / 2;
-        let y = floor(i / cols) * cellSize + cellSize / 2;
-
-        if (stitchArray[i] === 'k') {
-            drawKnit(x, y, cellSize);
-        } else {
-            drawPurl(x, y, cellSize);
-        }
-    }
+  if (stitchIndex < binaryMessage.length) {
+    drawSingleStitch(stitchIndex);
+    stitchIndex++;
+  } else {
+    noLoop(); // stop when all stitches are drawn
+  }
 }
 
-function addMessage(text) {
-    for (let i = 0; i < text.length; i++) {
-        let charBinary = text.charCodeAt(i).toString(2).padStart(8, '0');
-        for (let bit of charBinary) {
-            stitchArray.push(bit === '0' ? 'k' : 'p');
-        }
-    }
+function textToBinary(str) {
+  return str.split('')
+    .map(char => char.charCodeAt(0).toString(2).padStart(8, '0'))
+    .join('');
 }
 
-function drawKnit(x, y, size) {
+
+// Helper function to darken an RGB color array by a certain factor
+function darkenColor(rgb, factor = 0.7) {
+  // Clamp and floor to integers 0-255
+  return rgb.map(c => {
+    let val = Math.floor(c * factor);
+    if (val < 0) val = 0;
+    if (val > 255) val = 255;
+    return val;
+  });
+}
+
+function drawSingleStitch(i) {
+  let cols = floor(width / stitchSize);
+  let row = floor(i / cols);
+  let col = i % cols;
+  let y = row * stitchSize + 100;
+
+  let x;
+  if (row % 2 === 0) {
+    x = col * stitchSize + stitchSize / 2;
+  } else {
+    x = (cols - 1 - col) * stitchSize + stitchSize / 2;
+  }
+
+  let knitCol = colorsForStitches[i];
+
+  // Debug: Print colors for first few stitches to console
+  if (i < 5) {
+    console.log(`Original color: ${knitCol}`);
+    console.log(`Darkened color: ${darkenColor(knitCol, 0.7)}`);
+  }
+
+  let stitchCol = binaryMessage[i] === '0'
+    ? knitCol
+    : darkenColor(knitCol, 0.7);
+
+  if (binaryMessage[i] === '0') {
+    drawKnit(x, y, stitchSize, stitchCol);
+  } else {
+    drawPurl(x, y, stitchSize, stitchCol);
+  }
+}
+
+  
+
+function drawKnit(x, y, size, color) {
     let r = size / 2;
-
     push();
+    fill(color[0], color[1], color[2]);
     translate(x, y);
     push();
     translate(-5, 0);
     rotate(PI / 3);
     ellipse(0, 0, r * ellipseLength, r * ellipseWidth);
     pop();
-
+  
     translate(5, 0);
     rotate(-PI / 3);
     ellipse(0, 0, r * ellipseLength, r * ellipseWidth);
     pop();
-}
-
-function drawPurl(x, y, size) {
+    pop();
+  }
+  
+  function drawPurl(x, y, size, color) {
     let r = size / 2;
-
+  
     push();
-    fill(240, 90, 90);
+    fill(color[0], color[1], color[2]);
     translate(x, y);
     push();
     translate(-5, 0);
     rotate(PI / 1.2);
     ellipse(0, 0, r * ellipseLength / 1.1, r * ellipseWidth);
     pop();
-
+  
     translate(5, 0);
     rotate(-PI / 1.2);
     ellipse(0, 0, r * ellipseLength / 1.1, r * ellipseWidth);
     pop();
-}
-
-
-function windowResized() {
-    resizeCanvas(windowWidth, height);
-}
+    pop();
+  }
+  

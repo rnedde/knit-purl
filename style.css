@@ -1,8 +1,65 @@
 html, body {
-    margin: 0;
-    padding: 0;
-  }
-  canvas {
-    display: block;
-  }
-  
+  height: 100%;
+  margin: 0;
+  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+  transition: background-color 0.5s ease;
+}
+
+#container {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 100vh;
+}
+
+form#messageForm {
+  background: rgba(255, 255, 255, 0.2); /* subtle translucent white */
+  padding: 30px 40px;
+  border-radius: 12px;
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.15);
+  display: flex;
+  gap: 15px;
+  align-items: center;
+  min-width: 320px;
+  max-width: 480px;
+  width: 90vw;
+  backdrop-filter: blur(8px); /* nice frosted glass effect */
+  border: 1px solid rgba(255, 255, 255, 0.3);
+}
+
+form#messageForm input[type="text"] {
+  flex-grow: 1;
+  padding: 12px 15px;
+  font-size: 16px;
+  border: 2px solid rgba(255, 255, 255, 0.6);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.5);
+  color: #222;
+  transition: border-color 0.3s ease, background-color 0.3s ease;
+}
+
+form#messageForm input[type="text"]::placeholder {
+  color: #555;
+}
+
+form#messageForm input[type="text"]:focus {
+  outline: none;
+  border-color: rgba(255, 255, 255, 0.9);
+  background: white;
+}
+
+form#messageForm button {
+  background-color: rgba(255, 255, 255, 0.8);
+  border: none;
+  color: #222;
+  padding: 12px 25px;
+  font-size: 16px;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: background-color 0.3s ease;
+  font-weight: 600;
+}
+
+form#messageForm button:hover {
+  background-color: white;
+}
