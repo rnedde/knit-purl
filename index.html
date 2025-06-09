@@ -11,10 +11,21 @@
   <div id="container">
 
 
-    <form id="messageForm">
-      <input type="text" id="userInput" placeholder="Type your message..." required>
+    <form id="messageForm" autocomplete="off">
+      <input 
+        type="text" 
+        id="userInput" 
+        name="chatMessage" 
+        autocomplete="off" 
+        autocorrect="off" 
+        autocapitalize="off" 
+        spellcheck="false" 
+        placeholder="Type your message..." 
+        required
+      >
       <button type="submit">Send</button>
     </form>
+    
   </div>
   <script src="script-index.js"></script>
 </body>

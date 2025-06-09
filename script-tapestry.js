@@ -8,34 +8,38 @@ let ellipseWidth = 1.3;
 let stitchSize = 30;
 
 function setup() {
-  let canvas = createCanvas(windowWidth, windowHeight);
-  canvas.position(0, 0);
-  canvas.style('z-index', '-1');
-  noStroke();
-  textSize(16);
-
-  socket = new WebSocket('ws://localhost:8080');
-
-  socket.addEventListener('message', (event) => {
-    const msg = JSON.parse(event.data);
-
-    if (msg.type === 'fullMessage') {
-      binaryMessage = msg.data;
-      colorsForStitches = msg.colors || [];
-      stitchIndex = 0;
-      background(255);
-      loop();
-    } else if (msg.type === 'append') {
-      binaryMessage += msg.data;
-      for (let i = 0; i < msg.data.length; i++) {
-        colorsForStitches.push(msg.color);
+    let canvas = createCanvas(windowWidth, windowHeight); // temporary size
+    canvas.position(0, 0);
+    canvas.style('z-index', '-1');
+    noStroke();
+    textSize(16);
+  
+    socket = new WebSocket('ws://localhost:8080');
+  
+    socket.addEventListener('message', (event) => {
+      const msg = JSON.parse(event.data);
+  
+      if (msg.type === 'fullMessage') {
+        binaryMessage = msg.data;
+        colorsForStitches = msg.colors || [];
+        stitchIndex = 0;
+  
+        resizeCanvasToFitContent();
+        loop();
+      } else if (msg.type === 'append') {
+        binaryMessage += msg.data;
+        for (let i = 0; i < msg.data.length; i++) {
+          colorsForStitches.push(msg.color);
+        }
+  
+        resizeCanvasToFitContent();
+        loop();
       }
-      loop();
-    }
-  });
-
-  noLoop(); // only draw when new data arrives
-}
+    });
+  
+    noLoop();
+  }
+  
 
 function draw() {
   if (stitchIndex < binaryMessage.length) {
@@ -45,6 +49,23 @@ function draw() {
     noLoop();
   }
 }
+
+function resizeCanvasToFitContent() {
+    let cols = floor(windowWidth / stitchSize);
+    let rows = ceil(binaryMessage.length / cols);
+    let newHeight = rows * stitchSize + 100;
+  
+    // Save current canvas content
+    let currentCanvas = get();
+  
+    // Resize the canvas (this clears it)
+    resizeCanvas(windowWidth, newHeight);
+  
+    // Restore previous drawing
+    image(currentCanvas, 0, 0);
+  }
+  
+  
 
 // Helper function to darken an RGB color array by a certain factor
 function darkenColor(rgb, factor = 0) {
@@ -60,7 +81,7 @@ function darkenColor(rgb, factor = 0) {
     let cols = floor(width / stitchSize);
     let row = floor(i / cols);
     let col = i % cols;
-    let y = row * stitchSize + 100;
+    let y = row * stitchSize + 16;
   
     let x;
     if (row % 2 === 0) {

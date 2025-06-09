@@ -2,6 +2,7 @@ const WebSocket = require('ws');
 
 const wss = new WebSocket.Server({ port: 8080 });
 
+
 let sharedBinaryMessage = '';
 let sharedColors = []; // Array of [r, g, b] values, one per stitch
 
