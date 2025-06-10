@@ -1,7 +1,27 @@
+@font-face {
+  font-family: 'Knitting Pattern';
+  src: url('fonts/knitting-pattern.ttf') format('truetype');
+}
+
+body {
+  font-family: 'Knitting Pattern', cursive; /* Use your font. 'cursive' is a fallback. */
+  font-size: 18px;
+}
+
+h1 {
+  font-family: 'Knitting Pattern', cursive;
+  font-size: 48px;
+  text-align: center;
+}
+
+p {
+  line-height: 1.6;
+}
+
 html, body {
   min-height: 100%;
   margin: 0;
-  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+  /* font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; */
   transition: background-color 0.5s ease;
   overflow-x:hidden;
 }
@@ -14,6 +34,7 @@ html, body {
 }
 
 form#messageForm {
+  font-family: 'Knitting Pattern', cursive;
   background: rgba(255, 255, 255, 0.2); /* subtle translucent white */
   padding: 30px 40px;
   border-radius: 12px;
@@ -29,6 +50,7 @@ form#messageForm {
 }
 
 form#messageForm input[type="text"] {
+  font-family: 'Knitting Pattern', cursive;
   flex-grow: 1;
   padding: 12px 15px;
   font-size: 16px;
@@ -50,6 +72,7 @@ form#messageForm input[type="text"]:focus {
 }
 
 form#messageForm button {
+  font-family: 'Knitting Pattern', cursive;
   background-color: rgba(255, 255, 255, 0.8);
   border: none;
   color: #222;

@@ -42,6 +42,9 @@ function draw() {
   if (stitchIndex < binaryMessage.length) {
     drawSingleStitch(stitchIndex);
     stitchIndex++;
+
+    // Auto-scroll when stitches approach bottom of viewport
+    autoScrollIfNeeded();
   } else {
     noLoop();
   }
@@ -122,4 +125,21 @@ function drawPurl(x, y, size, color) {
   ellipse(0, 0, r * ellipseLength / 1.1, r * ellipseWidth);
   pop();
   pop();
+}
+
+
+function autoScrollIfNeeded() {
+  // Find the bottom of the last drawn stitch
+  let cols = floor(width / stitchSize);
+  let row = floor(stitchIndex / cols);
+  let stitchBottomY = row * stitchSize + 16 + stitchSize / 2; // approx bottom of stitch
+
+  // Current scroll position + viewport height
+  let scrollBottom = window.scrollY + window.innerHeight;
+
+  // Scroll if stitchBottomY is below current viewport bottom minus some padding
+  if (stitchBottomY > scrollBottom - 50) {
+    // Scroll smoothly down a bit
+    window.scrollBy({ top: stitchSize, behavior: 'smooth' });
+  }
 }
