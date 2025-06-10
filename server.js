@@ -1,18 +1,26 @@
-const WebSocket = require('ws');
+// server.js
+const express = require('express');
+const http = require('http');
+const { Server } = require('socket.io');
 
-const wss = new WebSocket.Server({ port: 8080 });
+const app = express();
+const server = http.createServer(app);
+const io = new Server(server);
+
+const path = require('path');
+app.use(express.static(path.join(__dirname, 'public')));
 
 
 let sharedBinaryMessage = '';
-let sharedColors = []; // Array of [r, g, b] values, one per stitch
+let sharedColors = [];
 
-// Optional: fixed palette of 4 colors
 const palette = [
   [255, 150, 200],
   [150, 200, 255],
   [200, 255, 150],
   [255, 220, 150]
 ];
+
 let clientCount = 0;
 
 function getNextColor() {
@@ -21,43 +29,37 @@ function getNextColor() {
   return color;
 }
 
-wss.on('connection', (ws) => {
+io.on('connection', (socket) => {
   const clientColor = getNextColor();
-  ws.clientColor = clientColor;
+  socket.clientColor = clientColor;
 
-  // Send assigned color
-  ws.send(JSON.stringify({ type: 'assignColor', data: clientColor }));
+  // Send assigned color to the client
+  socket.emit('assignColor', clientColor);
 
-  // Send current full message and full color history
-  ws.send(JSON.stringify({
-    type: 'fullMessage',
+  // Send full current state (message + colors)
+  socket.emit('fullMessage', {
     data: sharedBinaryMessage,
     colors: sharedColors
-  }));
+  });
 
-  ws.on('message', (message) => {
-    const msg = JSON.parse(message);
+  socket.on('append', (binaryData) => {
+    // Append new data
+    sharedBinaryMessage += binaryData;
 
-    if (msg.type === 'append') {
-      sharedBinaryMessage += msg.data;
-
-      // Push this client's color once per bit
-      for (let i = 0; i < msg.data.length; i++) {
-        sharedColors.push(ws.clientColor);
-      }
-
-      // Broadcast to all clients
-      wss.clients.forEach(client => {
-        if (client.readyState === WebSocket.OPEN) {
-          client.send(JSON.stringify({
-            type: 'append',
-            data: msg.data,
-            color: ws.clientColor
-          }));
-        }
-      });
+    // For each bit added, assign client's color
+    for (let i = 0; i < binaryData.length; i++) {
+      sharedColors.push(clientColor);
     }
+
+    // Broadcast to all clients (including sender)
+    io.emit('append', {
+      data: binaryData,
+      color: clientColor
+    });
   });
 });
 
-console.log('WebSocket server running on ws://localhost:8080');
+const PORT = process.env.PORT || 8080;
+server.listen(PORT, () => {
+  console.log(`Socket.IO server listening on port ${PORT}`);
+});

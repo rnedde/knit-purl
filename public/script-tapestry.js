@@ -1,0 +1,125 @@
+let binaryMessage = '';
+let colorsForStitches = [];
+let stitchIndex = 0;
+
+let ellipseLength = 2.5;
+let ellipseWidth = 1.3;
+let stitchSize = 30;
+
+let socket;
+
+function setup() {
+  let canvas = createCanvas(windowWidth, windowHeight);
+  canvas.position(0, 0);
+  canvas.style('z-index', '-1');
+  noStroke();
+  textSize(16);
+
+  socket = io(); // Socket.IO client
+
+  socket.on('fullMessage', (msg) => {
+    binaryMessage = msg.data;
+    colorsForStitches = msg.colors || [];
+    stitchIndex = 0;
+
+    resizeCanvasToFitContent();
+    loop();
+  });
+
+  socket.on('append', (msg) => {
+    binaryMessage += msg.data;
+    for (let i = 0; i < msg.data.length; i++) {
+      colorsForStitches.push(msg.color);
+    }
+    resizeCanvasToFitContent();
+    loop();
+  });
+
+  noLoop();
+}
+
+function draw() {
+  if (stitchIndex < binaryMessage.length) {
+    drawSingleStitch(stitchIndex);
+    stitchIndex++;
+  } else {
+    noLoop();
+  }
+}
+
+function resizeCanvasToFitContent() {
+  let cols = floor(windowWidth / stitchSize);
+  let rows = ceil(binaryMessage.length / cols);
+  let newHeight = rows * stitchSize + 100;
+
+  let currentCanvas = get();
+
+  resizeCanvas(windowWidth, newHeight);
+  image(currentCanvas, 0, 0);
+}
+
+function darkenColor(rgb, factor = 0) {
+  return rgb.map(c => {
+    let val = Math.floor(c * factor);
+    val = Math.min(255, Math.max(0, val));
+    return val;
+  });
+}
+
+function drawSingleStitch(i) {
+  let cols = floor(width / stitchSize);
+  let row = floor(i / cols);
+  let col = i % cols;
+  let y = row * stitchSize + 16;
+
+  let x = (row % 2 === 0)
+    ? col * stitchSize + stitchSize / 2
+    : (cols - 1 - col) * stitchSize + stitchSize / 2;
+
+  let knitCol = colorsForStitches[i];
+  let stitchCol = binaryMessage[i] === '0'
+    ? knitCol
+    : darkenColor(knitCol, 0.7);
+
+  if (binaryMessage[i] === '0') {
+    drawKnit(x, y, stitchSize, stitchCol);
+  } else {
+    drawPurl(x, y, stitchSize, stitchCol);
+  }
+}
+
+function drawKnit(x, y, size, color) {
+  let r = size / 2;
+  push();
+  fill(color);
+  translate(x, y);
+  push();
+  translate(-5, 0);
+  rotate(PI / 3);
+  ellipse(0, 0, r * ellipseLength, r * ellipseWidth);
+  pop();
+
+  translate(5, 0);
+  rotate(-PI / 3);
+  ellipse(0, 0, r * ellipseLength, r * ellipseWidth);
+  pop();
+  pop();
+}
+
+function drawPurl(x, y, size, color) {
+  let r = size / 2;
+  push();
+  fill(color);
+  translate(x, y);
+  push();
+  translate(-5, 0);
+  rotate(PI / 1.2);
+  ellipse(0, 0, r * ellipseLength / 1.1, r * ellipseWidth);
+  pop();
+
+  translate(5, 0);
+  rotate(-PI / 1.2);
+  ellipse(0, 0, r * ellipseLength / 1.1, r * ellipseWidth);
+  pop();
+  pop();
+}
