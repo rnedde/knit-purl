@@ -4,86 +4,86 @@
 }
 
 body {
-  font-family: 'Knitting Pattern', cursive; /* Use your font. 'cursive' is a fallback. */
-  font-size: 18px;
-}
-
-h1 {
   font-family: 'Knitting Pattern', cursive;
-  font-size: 48px;
-  text-align: center;
-}
-
-p {
-  line-height: 1.6;
-}
-
-html, body {
-  min-height: 100%;
+  font-size: 18px;
   margin: 0;
-  /* font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; */
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column; /* Changed to column to stack elements vertically */
+  justify-content: center;
+  align-items: center;
   transition: background-color 0.5s ease;
-  overflow-x:hidden;
+  /* overflow: hidden; */
+  color: #fff;
 }
 
 #container {
-  display: flex;
-  align-items: center;
+  display: flex; /* Make container a flexbox to arrange items inside it */
+  flex-direction: column; /* Stack displayText and warningMessage vertically */
   justify-content: center;
-  height: 100vh;
-}
-
-form#messageForm {
-  font-family: 'Knitting Pattern', cursive;
-  background: rgba(255, 255, 255, 0.2); /* subtle translucent white */
-  padding: 30px 40px;
-  border-radius: 12px;
-  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.15);
-  display: flex;
-  gap: 15px;
   align-items: center;
-  min-width: 320px;
-  max-width: 480px;
-  width: 90vw;
-  backdrop-filter: blur(8px); /* nice frosted glass effect */
-  border: 1px solid rgba(255, 255, 255, 0.3);
+  width: 100%;
+  height: 100%;
 }
 
-form#messageForm input[type="text"] {
+#hiddenUserInput {
+  position: absolute;
+  top: -9999px;
+  left: -9999px;
+  opacity: 0;
+  width: 1px;
+  height: 1px;
+  pointer-events: none;
+}
+
+#displayText {
   font-family: 'Knitting Pattern', cursive;
-  flex-grow: 1;
-  padding: 12px 15px;
-  font-size: 16px;
-  border: 2px solid rgba(255, 255, 255, 0.6);
-  border-radius: 8px;
-  background: rgba(255, 255, 255, 0.5);
-  color: #222;
-  transition: border-color 0.3s ease, background-color 0.3s ease;
-}
-
-form#messageForm input[type="text"]::placeholder {
-  color: #555;
-}
-
-form#messageForm input[type="text"]:focus {
+  font-size: 6vw;
+  color: white;
+  text-align: center;
   outline: none;
-  border-color: rgba(255, 255, 255, 0.9);
-  background: white;
+  max-width: 90vw;
+  word-wrap: break-word;
+  overflow-wrap: break-word;
+  white-space: normal;
+  padding: 0 10px; /* Added padding to prevent text from touching screen edges */
+
+  /* Optional: To address the thin line issue (experiment with these) */
+  /* -webkit-font-smoothing: antialiased; */
+  /* -moz-osx-font-smoothing: grayscale; */
+  /* text-shadow: 0 0 0.5px rgba(255, 255, 255, 0.7); */
 }
 
-form#messageForm button {
+#cursor {
+  display: inline-block;
+  animation: blink 0.8s infinite;
+  color: white;
+}
+
+@keyframes blink {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0; }
+}
+
+#warningMessage {
+  margin-top: 20px; /* Space above the warning */
   font-family: 'Knitting Pattern', cursive;
-  background-color: rgba(255, 255, 255, 0.8);
-  border: none;
-  color: #222;
-  padding: 12px 25px;
-  font-size: 16px;
-  border-radius: 8px;
-  cursor: pointer;
-  transition: background-color 0.3s ease;
-  font-weight: 600;
+  font-size: 2vw; /* Make it smaller than the main text */
+  color: rgb(255, 99, 71); /* Tomato red for warning */
+  text-align: center;
+  opacity: 1;
+  transition: opacity 0.3s ease-in-out;
 }
 
-form#messageForm button:hover {
-  background-color: white;
+.hidden {
+  opacity: 0 !important; /* Use !important to ensure it overrides other opacity settings */
+  pointer-events: none; /* Make it unclickable when hidden */
+}
+
+
+/* Remove all previous form and input styles as they are no longer needed */
+form#messageForm,
+form#messageForm input[type="text"],
+form#messageForm button {
+  display: none !important;
 }

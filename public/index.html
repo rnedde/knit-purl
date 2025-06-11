@@ -9,17 +9,18 @@
 
 <body>
   <div id="container">
+    <input type="text" id="hiddenUserInput" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" autofocus>
 
+    <div id="displayText">
+      <span id="cursor">|</span>
+    </div>
 
-    <form id="messageForm" autocomplete="off">
-      <input type="text" id="userInput" name="chatMessage" autocomplete="off" autocorrect="off" autocapitalize="off"
-        spellcheck="false" placeholder="Type your message..." required>
-      <button type="submit">Send</button>
-    </form>
-
+    <div id="warningMessage" class="hidden">
+      Maximum 200 characters reached.
+    </div>
   </div>
   <script src="/socket.io/socket.io.js"></script>
   <script src="script-index.js"></script>
-
 </body>
+
 </html>
