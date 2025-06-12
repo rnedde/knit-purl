@@ -17,6 +17,10 @@ body {
   color: #fff;
 }
 
+#defaultCanvas0{
+  background-color:#000;
+}
+
 #container {
   display: flex; /* Make container a flexbox to arrange items inside it */
   flex-direction: column; /* Stack displayText and warningMessage vertically */

@@ -1,14 +1,14 @@
 // --- Global Variables ---
 let binaryMessage = '';
-let colorsForStitches = [];
-let stitchImages = []; // NEW: Array to store p5.Image objects for each stitch
+let colorsForStitches = []; // This still holds the original base colors
+let stitchImages = []; // Stores just the p5.Image objects
+// NEW: Array to store calculated color data for each stitch {belowColor: p5.Color, aboveColor: p5.Color}
+let stitchColorData = [];
 let stitchIndex = 0; // Tracks the next stitch to be drawn
 
-let ellipseLength = 2.5; // Unused, can be removed
-let ellipseWidth = 1.3;  // Unused, can be removed
 let stitchSize = 100;
 
-let knitSVGString; // Holds SVG content as strings
+let knitSVGString;
 let purlSVGString;
 
 let socket;
@@ -16,10 +16,11 @@ let socket;
 let lastScrollRow = -1;
 let scrollBufferRows = 2;
 
+
 // --- Preload SVG Content as Strings ---
 function preload() {
-  loadStrings('images/knit1.svg', knitSVGLoaded);
-  loadStrings('images/purl1.svg', purlSVGLoaded);
+  loadStrings('images/knit6.svg', knitSVGLoaded);
+  loadStrings('images/purl6.svg', purlSVGLoaded);
 }
 
 function knitSVGLoaded(data) {
@@ -30,8 +31,10 @@ function purlSVGLoaded(data) {
   purlSVGString = data.join('\n');
 }
 
+
 // --- Setup ---
 function setup() {
+
   let canvas = createCanvas(windowWidth, windowHeight);
   canvas.position(0, 0);
   canvas.style('z-index', '-1');
@@ -43,16 +46,17 @@ function setup() {
 
   socket.on('fullMessage', (msg) => {
     binaryMessage = msg.data;
-    colorsForStitches = msg.colors || [];
-    stitchImages = []; // Reset image cache for a new message
-    background(255);
+    colorsForStitches = msg.colors || []; // The initial base colors
+    stitchImages = []; // Reset image cache
+    stitchColorData = []; // Reset color data cache
     stitchIndex = 0;
     lastScrollRow = -1;
-    
-    // NEW: Load all images dynamically when the full message arrives
+
+    // NEW: First calculate all color data, then load images
+    calculateAllStitchColors();
     loadAllStitchImages(() => {
       resizeCanvasToFitContent();
-      loop(); // Start drawing only after all initial images are loaded
+      loop();
     });
   });
 
@@ -62,82 +66,29 @@ function setup() {
     for (let i = 0; i < msg.data.length; i++) {
       colorsForStitches.push(msg.color);
     }
-    
-    // NEW: Append new images to the cache
+
+    // NEW: Calculate color data for new stitches, then load new images
+    calculateStitchColorsForAppend(oldLength);
     appendStitchImages(oldLength, () => {
       resizeCanvasToFitContent();
-      loop(); // Continue drawing
+      loop();
     });
   });
 
   noLoop();
 }
 
-// --- NEW: Function to load all stitch images ---
-function loadAllStitchImages(callback) {
-  let loadedCount = 0;
-  let totalStitches = binaryMessage.length;
 
-  if (totalStitches === 0) {
-    callback(); // Nothing to load
-    return;
-  }
-
-  for (let i = 0; i < totalStitches; i++) {
-    let svgContent = binaryMessage[i] === '0' ? knitSVGString : purlSVGString;
-    let stitchP5Color = color(colorsForStitches[i]);
-    let coloredSVGDataURL = getColoredSVGDataURL(svgContent, stitchP5Color);
-
-    loadImage(coloredSVGDataURL, img => {
-      stitchImages[i] = img; // Store image in the correct index
-      loadedCount++;
-      if (loadedCount === totalStitches) {
-        callback(); // All images for the full message are loaded
-      }
-    });
-  }
-}
-
-// --- NEW: Function to append new stitch images ---
-function appendStitchImages(startIndex, callback) {
-  let loadedCount = 0;
-  let stitchesToAppend = binaryMessage.length - startIndex;
-
-  if (stitchesToAppend === 0) {
-    callback();
-    return;
-  }
-
-  for (let i = startIndex; i < binaryMessage.length; i++) {
-    let svgContent = binaryMessage[i] === '0' ? knitSVGString : purlSVGString;
-    let stitchP5Color = color(colorsForStitches[i]);
-    let coloredSVGDataURL = getColoredSVGDataURL(svgContent, stitchP5Color);
-
-    loadImage(coloredSVGDataURL, img => {
-      stitchImages[i] = img;
-      loadedCount++;
-      if (loadedCount === stitchesToAppend) {
-        callback(); // All newly appended images are loaded
-      }
-    });
-  }
-}
-
-
-// --- Draw Loop (Now draws from cache) ---
+// --- Core Drawing Logic ---
 function draw() {
   // Only draw if the image for the current stitch index is already loaded
   if (stitchIndex < binaryMessage.length && stitchImages[stitchIndex]) {
     drawSingleStitch(stitchIndex);
     stitchIndex++;
-
     autoScrollIfNeeded();
   } else if (stitchIndex >= binaryMessage.length) {
-    // If all stitches are drawn OR waiting for the next batch to load
     noLoop();
   }
-  // If stitchImages[stitchIndex] is not yet loaded, loop will continue until it is,
-  // or until noLoop() is called if all stitches have been processed.
 }
 
 
@@ -154,32 +105,191 @@ function resizeCanvasToFitContent() {
   }
 }
 
-// --- Draw Single Stitch (Now uses cached images) ---
+// --- NEW: Calculate all stitch colors synchronously ---
+function calculateAllStitchColors() {
+  let cols = floor(width / stitchSize);
+  stitchColorData = new Array(binaryMessage.length).fill(null);
+
+  for (let i = 0; i < binaryMessage.length; i++) {
+    let currentBelowColor = color(colorsForStitches[i]);
+    let currentAboveColor;
+
+    let currentRow = floor(i / cols);
+    let currentCanonicalCol = i % cols; // This is the 0-indexed column if all rows were LTR
+
+    // --- NEW: Calculate the visual column of the current stitch ---
+    let currentVisualCol;
+    if (currentRow % 2 === 0) { // Even rows (0, 2, 4...) are drawn left-to-right
+      currentVisualCol = currentCanonicalCol;
+    } else { // Odd rows (1, 3, 5...) are drawn right-to-left
+      currentVisualCol = (cols - 1) - currentCanonicalCol;
+    }
+
+    if (currentRow === 0) {
+      currentAboveColor = currentBelowColor; // First row uses its own belowColor for above
+    } else {
+      let rowAbove = currentRow - 1;
+      let visualColAbove = currentVisualCol; // The stitch above is in the same visual column
+
+      // --- NEW: Calculate the indexAbove based on the visual column and the rowAbove's parity ---
+      let indexAbove;
+      if (rowAbove % 2 === 0) { // If the row above is even (drawn LTR)
+        indexAbove = rowAbove * cols + visualColAbove;
+      } else { // If the row above is odd (drawn RTL)
+        indexAbove = rowAbove * cols + (cols - 1 - visualColAbove);
+      }
+
+      if (indexAbove >= 0 && indexAbove < binaryMessage.length && stitchColorData[indexAbove]) {
+        currentAboveColor = stitchColorData[indexAbove].belowColor;
+      } else {
+        // This warning should now be much rarer, possibly only for edge cases or invalid data
+        console.warn(`[calculateAllStitchColors] Stitch above index ${i} (visual col ${currentVisualCol}, indexAbove ${indexAbove}) not found or color data not ready. Using current belowColor as fallback.`);
+        currentAboveColor = currentBelowColor;
+      }
+    }
+    stitchColorData[i] = { belowColor: currentBelowColor, aboveColor: currentAboveColor };
+  }
+}
+
+// --- NEW: Calculate colors for appended stitches synchronously (apply the same logic) ---
+function calculateStitchColorsForAppend(startIndex) {
+  let cols = floor(width / stitchSize);
+  stitchColorData.length = binaryMessage.length; // Extend the stitchColorData array for new stitches
+
+  for (let i = startIndex; i < binaryMessage.length; i++) {
+    let currentBelowColor = color(colorsForStitches[i]);
+    let currentAboveColor;
+
+    let currentRow = floor(i / cols);
+    let currentCanonicalCol = i % cols;
+
+    // --- NEW: Calculate the visual column of the current stitch ---
+    let currentVisualCol;
+    if (currentRow % 2 === 0) { // Even rows (0, 2, 4...) are drawn left-to-right
+      currentVisualCol = currentCanonicalCol;
+    } else { // Odd rows (1, 3, 5...) are drawn right-to-left
+      currentVisualCol = (cols - 1) - currentCanonicalCol;
+    }
+
+    if (currentRow === 0) {
+      currentAboveColor = currentBelowColor;
+    } else {
+      let rowAbove = currentRow - 1;
+      let visualColAbove = currentVisualCol; // The stitch above is in the same visual column
+
+      // --- NEW: Calculate the indexAbove based on the visual column and the rowAbove's parity ---
+      let indexAbove;
+      if (rowAbove % 2 === 0) { // If the row above is even (drawn LTR)
+        indexAbove = rowAbove * cols + visualColAbove;
+      } else { // If the row above is odd (drawn RTL)
+        indexAbove = rowAbove * cols + (cols - 1 - visualColAbove);
+      }
+
+      if (indexAbove >= 0 && indexAbove < binaryMessage.length && stitchColorData[indexAbove]) {
+        currentAboveColor = stitchColorData[indexAbove].belowColor;
+      } else {
+        console.warn(`[calculateStitchColorsForAppend] Stitch above index ${i} (visual col ${currentVisualCol}, indexAbove ${indexAbove}) color data not ready. Using current belowColor as fallback.`);
+        currentAboveColor = currentBelowColor;
+      }
+    }
+    stitchColorData[i] = { belowColor: currentBelowColor, aboveColor: currentAboveColor };
+  }
+}
+
+// --- Modified: Load all stitch images using calculated colors ---
+function loadAllStitchImages(callback) {
+  let loadedCount = 0;
+  let totalStitches = binaryMessage.length;
+
+  if (totalStitches === 0) {
+    callback();
+    return;
+  }
+
+  stitchImages = new Array(totalStitches).fill(null); // Ensure array is sized
+
+  for (let i = 0; i < totalStitches; i++) {
+    // Retrieve the already calculated colors
+    const { belowColor, aboveColor } = stitchColorData[i];
+
+    let svgContent = binaryMessage[i] === '0' ? knitSVGString : purlSVGString;
+    let coloredSVGDataURL = getColoredSVGDataURL(svgContent, belowColor, aboveColor);
+
+    // Use a closure to capture 'i' correctly for the async loadImage callback
+    ((idx) => {
+      loadImage(coloredSVGDataURL, img => {
+        stitchImages[idx] = img; // Store just the image object
+        loadedCount++;
+        if (loadedCount === totalStitches) {
+          callback();
+        }
+      });
+    })(i); // Pass current i to closure
+  }
+}
+
+// --- Modified: Append new stitch images using calculated colors ---
+function appendStitchImages(startIndex, callback) {
+  let loadedCount = 0;
+  let stitchesToAppend = binaryMessage.length - startIndex;
+
+  if (stitchesToAppend === 0) {
+    callback();
+    return;
+  }
+
+  // Extend the stitchImages array for new stitches
+  stitchImages.length = binaryMessage.length;
+
+  for (let i = startIndex; i < binaryMessage.length; i++) {
+    const { belowColor, aboveColor } = stitchColorData[i]; // Use already calculated colors
+
+    let svgContent = binaryMessage[i] === '0' ? knitSVGString : purlSVGString;
+    let coloredSVGDataURL = getColoredSVGDataURL(svgContent, belowColor, aboveColor);
+
+    ((idx) => {
+      loadImage(coloredSVGDataURL, img => {
+        stitchImages[idx] = img;
+        loadedCount++;
+        if (loadedCount === stitchesToAppend) {
+          callback();
+        }
+      });
+    })(i);
+  }
+}
+
+
+// --- Draw Single Stitch (Uses cached images directly) ---
 function drawSingleStitch(i) {
   let cols = floor(width / stitchSize);
   let row = floor(i / cols);
   let col = i % cols;
-  
+
   let x = (row % 2 === 0)
     ? col * stitchSize + stitchSize / 2
     : (cols - 1 - col) * stitchSize + stitchSize / 2;
 
   let y = row * stitchSize + stitchSize / 2;
 
-  // Retrieve the pre-loaded image from the cache
-  let stitchImage = stitchImages[i];
+  let stitchImage = stitchImages[i]; // Get the stored p5.Image object
 
   if (stitchImage) { // Make sure the image actually exists
     push();
     translate(x, y);
-    // Directly draw the pre-loaded image
     image(stitchImage, -stitchSize / 2, -stitchSize / 2, stitchSize, stitchSize);
     pop();
   }
 }
 
-// --- Helper: Get Colored SVG Data URL (No Change) ---
-function getColoredSVGDataURL(svgContent, mainColor) {
+/**
+ * Helper function to modify SVG colors and return a Data URL.
+ * @param {string} svgContent The SVG content as a string.
+ * @param {p5.Color} belowColor The color from `colorsForStitches` (intended for the base/main part of the current stitch).
+ * @param {p5.Color} aboveColor The color derived from the stitch above (intended for the top/connecting part).
+ * @returns {string} A Data URL representing the modified SVG.
+ */
+function getColoredSVGDataURL(svgContent, belowColor, aboveColor) {
   let tempDiv = document.createElement('div');
   tempDiv.innerHTML = svgContent;
   let svgElement = tempDiv.querySelector('svg');
@@ -189,34 +299,24 @@ function getColoredSVGDataURL(svgContent, mainColor) {
     return '';
   }
 
-  let cls1Elements = svgElement.querySelectorAll('.cls-1');
+  // --- REVERTING THE SWAP ---
+  // Applying belowColor to .cls-1 (the 'below' visual part)
+  let cls1Elements = svgElement.querySelectorAll('.cls-2');
   cls1Elements.forEach(el => {
-    el.style.fill = mainColor.toString();
+    el.style.fill = belowColor.toString(); // .cls-1 gets belowColor
   });
 
-  let cls2Elements = svgElement.querySelectorAll('.cls-2');
+  // Applying aboveColor to .cls-2 (the 'above' visual part)
+  let cls2Elements = svgElement.querySelectorAll('.cls-3');
   cls2Elements.forEach(el => {
-    el.style.fill = mainColor.toString();
+    el.style.fill = aboveColor.toString(); // .cls-2 gets aboveColor
   });
 
+  // The rest of the function remains the same
   let modifiedSVGString = new XMLSerializer().serializeToString(svgElement);
   return 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(modifiedSVGString);
 }
 
-// --- drawKnit and drawPurl (Simplified) ---
-// These functions are no longer needed if drawSingleStitch directly uses stitchImages.
-// They were primarily used to trigger the loadImage.
-// You can remove these if you're happy with the new `loadAllStitchImages` approach.
-/*
-function drawKnit(x, y, size, color) {
-  // This function is effectively replaced by how drawSingleStitch now uses stitchImages
-  // It's still here to match original structure but its body is empty for this new approach
-}
-
-function drawPurl(x, y, size, color) {
-  // This function is effectively replaced by how drawSingleStitch now uses stitchImages
-}
-*/
 
 // --- Auto-Scrolling ---
 function autoScrollIfNeeded() {
@@ -230,12 +330,8 @@ function autoScrollIfNeeded() {
 
   if (currentRow > lastScrollRow && window.scrollY < targetScrollY) {
     if (abs(window.scrollY - targetScrollY) > 5) {
-       window.scrollTo({ top: targetScrollY, behavior: 'smooth' });
+      window.scrollTo({ top: targetScrollY, behavior: 'smooth' });
     }
     lastScrollRow = currentRow;
   }
-}
-
-function mousePressed() {
-  console.log("clicked at:", mouseX, mouseY);
 }
