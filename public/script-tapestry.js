@@ -21,9 +21,9 @@ let currentCols; // Will be calculated dynamically
 
 // --- Preload SVG Content (No changes here) ---
 function preload() {
-  loadStrings('images/knit7.svg', knitSVGLoaded);
-  loadStrings('images/purl7.svg', purlSVGLoaded);
-  loadStrings('images/loops7.svg', loopsSVGLoaded);
+  loadStrings('images/knit1.svg', knitSVGLoaded);
+  loadStrings('images/purl1.svg', purlSVGLoaded);
+  loadStrings('images/loops1.svg', loopsSVGLoaded);
 }
 
 function knitSVGLoaded(data) {

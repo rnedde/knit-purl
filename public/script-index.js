@@ -5,7 +5,7 @@ const displayText = document.getElementById('displayText');
 const cursor = document.getElementById('cursor');
 const warningMessage = document.getElementById('warningMessage');
 
-const MAX_CHAR_LENGTH = 200; // Define max length
+const MAX_CHAR_LENGTH = 50; // Define max length
 
 socket.on('assignColor', (color) => {
     knitColor = color;
@@ -46,6 +46,10 @@ window.addEventListener('load', () => {
     hiddenUserInput.focus();
     updateDisplayText(''); // Initialize with just the cursor
     showWarning(false); // Ensure warning is hidden on load
+    cursor.style.visibility = 'visible'; // Ensure cursor is visible on load
+    cursor.style.opacity = '1'; // Ensure opacity is 1
+    // Set up transition for cursor's smooth reappearance
+    cursor.style.transition = 'opacity 0.5s ease-out, transform 0.5s ease-out';
 });
 
 // Keep focus on the hidden input if user clicks elsewhere on the body
@@ -67,6 +71,10 @@ hiddenUserInput.addEventListener('input', (e) => {
     }
 
     updateDisplayText(message);
+    // Reset cursor position to end of text and make visible when typing again
+    cursor.style.transform = 'translate(0, 0)';
+    cursor.style.visibility = 'visible';
+    cursor.style.opacity = '1';
 });
 
 // Listen for Enter key press on the hidden input
@@ -76,65 +84,70 @@ hiddenUserInput.addEventListener('keydown', (e) => {
 
         const message = hiddenUserInput.value.trim();
         if (message !== '') {
-            const binary = textToBinary(message);
-            socket.emit('append', binary);
+            // Hide the cursor immediately (visibility off)
+            cursor.style.visibility = 'hidden';
+            // Also reset its transform to prevent snapping from a previous centered position
+            cursor.style.transform = 'translate(0, 0)';
 
-            // Get all character spans (excluding the cursor)
             const charSpans = Array.from(displayText.querySelectorAll('span')).filter(span => span !== cursor);
 
             let completedAnimations = 0;
             const totalAnimations = charSpans.length;
 
             if (totalAnimations === 0) {
-                // If there are no characters, just clear immediately
+                // If there are no characters, just send and then show cursor
+                const binary = textToBinary(message);
+                socket.emit('append', binary);
+
                 displayText.innerHTML = '';
-                displayText.appendChild(cursor);
                 hiddenUserInput.value = '';
                 showWarning(false);
+                // Use requestAnimationFrame to ensure layout is updated before centering
+                requestAnimationFrame(() => {
+                    centerAndShowCursor();
+                });
                 return;
             }
 
-            // Define animation properties
+            // Define animation properties for characters
             const animationDuration = 1000; // 1 second
             const staggerDelay = 50; // 50ms delay between each letter's animation start
 
             charSpans.forEach((charSpan, index) => {
-                // Calculate the current position of the span relative to the viewport
-                // We need this to set the initial transform correctly
                 const rect = charSpan.getBoundingClientRect();
                 const initialX = rect.left;
                 const initialY = rect.top;
 
-                // Set initial transform to its current position (no movement yet)
-                charSpan.style.transform = `translate(0px, 0px)`; // Start from current position
+                charSpan.style.transform = `translate(0px, 0px)`;
                 charSpan.style.opacity = '1';
                 charSpan.style.transition = `transform ${animationDuration}ms ease-out, opacity ${animationDuration}ms ease-out`;
 
-                // Trigger the animation after a staggered delay
                 setTimeout(() => {
-                    // Calculate the target position: bottom-left corner of the viewport
-                    // We need to move it relative to its initial position.
-                    // To move to bottom-left (0, window.innerHeight), we calculate the delta.
                     const targetX = 0 - initialX;
                     const targetY = window.innerHeight - initialY;
 
                     charSpan.style.transform = `translate(${targetX}px, ${targetY}px)`;
                     charSpan.style.opacity = '0';
-                }, index * staggerDelay); // Staggered start
+                }, index * staggerDelay);
 
-                // Listen for the end of the transition for each span
                 charSpan.addEventListener('transitionend', function handler(event) {
-                    // Ensure we're listening for the 'transform' transition (or opacity if you prefer)
                     if (event.propertyName === 'transform' || event.propertyName === 'opacity') {
                         completedAnimations++;
-                        charSpan.removeEventListener('transitionend', handler); // Remove self
+                        charSpan.removeEventListener('transitionend', handler);
 
                         if (completedAnimations === totalAnimations) {
-                            // All character animations are complete
+                            // All character animations are complete, now send the message
+                            const binary = textToBinary(message);
+                            socket.emit('append', binary);
+
                             displayText.innerHTML = ''; // Clear all text content
-                            displayText.appendChild(cursor); // Re-append cursor
                             hiddenUserInput.value = ''; // Clear the input field for the next message
                             showWarning(false); // Hide warning
+
+                            // Use requestAnimationFrame to ensure layout is updated before centering
+                            requestAnimationFrame(() => {
+                                centerAndShowCursor();
+                            });
                         }
                     }
                 });
@@ -147,4 +160,25 @@ function textToBinary(str) {
     return str.split('')
         .map(c => c.charCodeAt(0).toString(2).padStart(8, '0'))
         .join('');
+}
+
+// Function to center and show the cursor
+function centerAndShowCursor() {
+    // Ensure cursor is in the DOM
+    displayText.appendChild(cursor);
+
+    // It's crucial that displayText has its final dimensions before getBoundingClientRect
+    // This `requestAnimationFrame` (or a tiny setTimeout) ensures a repaint has happened.
+
+    // Calculate center position relative to the viewport/displayText
+    const displayRect = displayText.getBoundingClientRect();
+    const cursorRect = cursor.getBoundingClientRect();
+
+    const targetX = (displayRect.width / 2) - (cursorRect.width / 2);
+    const targetY = (displayRect.height / 2) - (cursorRect.height / 2);
+
+    // Apply visibility and transform immediately, then opacity for fade-in
+    cursor.style.visibility = 'visible';
+    cursor.style.transform = `translate(${targetX}px, ${targetY}px)`;
+    cursor.style.opacity = '1'; // This will cause a fade-in effect if transition is set
 }
