@@ -12,6 +12,7 @@ socket.on('assignColor', (color) => {
     document.body.style.backgroundColor = `rgb(${knitColor[0]}, ${knitColor[1]}, ${knitColor[2]})`;
 });
 
+
 // Function to update the displayed text and cursor
 function updateDisplayText(text) {
     // Clear any existing text and remove previous character spans
@@ -20,12 +21,12 @@ function updateDisplayText(text) {
     // Create a span for each character
     text.split('').forEach(char => {
         const charSpan = document.createElement('span');
-        charSpan.textContent = char;
-        // Basic styling for the individual spans to ensure they are inline-block
-        // and can be individually positioned for animation.
+        // THIS IS THE CRITICAL LINE: Replace regular space with non-breaking space for display
+        charSpan.textContent = char === ' ' ? '\u00A0' : char;
+        
         charSpan.style.display = 'inline-block';
-        charSpan.style.position = 'relative'; // Important for calculating individual positions later
-        charSpan.style.willChange = 'transform, opacity'; // Optimize for animation performance
+        charSpan.style.position = 'relative';
+        charSpan.style.willChange = 'transform, opacity';
         displayText.appendChild(charSpan);
     });
 
