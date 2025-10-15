@@ -12,7 +12,6 @@ socket.on('assignColor', (color) => {
     document.body.style.backgroundColor = `rgb(${knitColor[0]}, ${knitColor[1]}, ${knitColor[2]})`;
 });
 
-
 // Function to update the displayed text and cursor
 function updateDisplayText(text) {
     // Clear any existing text and remove previous character spans
@@ -62,6 +61,15 @@ document.body.addEventListener('click', () => {
 hiddenUserInput.addEventListener('input', (e) => {
     let message = e.target.value;
 
+    // Convert input to uppercase
+    const capitalizedMessage = message.toUpperCase();
+
+    // If the value changed due to capitalization, update the input field
+    if (message !== capitalizedMessage) {
+        hiddenUserInput.value = capitalizedMessage;
+        message = capitalizedMessage; // Use the capitalized message for further processing
+    }
+
     // Truncate message if it exceeds max length
     if (message.length > MAX_CHAR_LENGTH) {
         message = message.substring(0, MAX_CHAR_LENGTH);
@@ -80,6 +88,12 @@ hiddenUserInput.addEventListener('input', (e) => {
 
 // Listen for Enter key press on the hidden input
 hiddenUserInput.addEventListener('keydown', (e) => {
+    // Optional: Prevent lowercase letters from being typed at all
+    // if (e.key.length === 1 && e.key.match(/[a-z]/)) {
+    //     e.preventDefault();
+    //     return;
+    // }
+
     if (e.key === 'Enter') {
         e.preventDefault(); // Prevent form submission or new line
 

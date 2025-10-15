@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <title>Knit a Message</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+
+<body>
+  <div id="container">
+    <input type="text" id="hiddenUserInput" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" autofocus>
+
+    <div id="displayText">
+      <span id="cursor">|</span>
+    </div>
+
+    <div id="warningMessage" class="hidden">
+      Maximum 50 characters reached.
+    </div>
+  </div>
+  <script src="/socket.io/socket.io.js"></script>
+  <script src="script-index.js"></script>
+</body>
+
+</html>

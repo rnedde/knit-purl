@@ -646,3 +646,36 @@ function autoScrollIfNeeded() {
     lastScrollRow = currentRow;
   }
 }
+// ... (Your existing global variables and preload/setup functions) ...
+
+document.addEventListener('keydown', (event) => {
+  // Check if the pressed key is 's' (case-insensitive)
+  if (event.key === 's' || event.key === 'S') {
+      event.preventDefault(); // Prevent any default browser action for 's' key
+
+      // Get the full body element to capture
+      const bodyElement = document.body;
+
+      // Use html2canvas to capture the body
+      html2canvas(bodyElement, {
+          // Options for html2canvas
+          scale: 2, // Increase scale for higher resolution image
+          logging: false, // Turn off logging for cleaner console
+          useCORS: true, // Important for images loaded from different origins (if any)
+          // Set the background color to white for the screenshot
+          backgroundColor: '#000000', // Forces a white background
+      }).then(canvas => {
+          // Create a temporary link element
+          const link = document.createElement('a');
+          link.download = 'tapestry_screenshot.png'; // Set the download filename
+          link.href = canvas.toDataURL('image/png'); // Get the image data as PNG
+          document.body.appendChild(link); // Append link to body (required for Firefox)
+          link.click(); // Programmatically click the link to trigger download
+          document.body.removeChild(link); // Remove the link after download
+      }).catch(err => {
+          console.error("Error capturing screenshot:", err);
+      });
+  }
+});
+
+// ... (Rest of your script-tapestry.js functions) ...
